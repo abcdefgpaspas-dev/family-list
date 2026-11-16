@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="theme-color" content="#3E7B4F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="みどりのかご">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>みどりのかご</title>
+<style>
+:root{
+  --g:#3E7B4F; --g2:#2E5F3C; --leaf:#8BC34A; --leafL:#E6F4D9; --bg:#F4FAF4;
+  --card:#fff; --line:#DCEBDD; --txt:#22332A; --sub:#6B7F70; --warn:#C0563A;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;font-size:17px}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+.hide{display:none!important}
+
+/* ヘッダー */
+#hdr{position:sticky;top:0;z-index:20;background:var(--g);color:#fff;padding:calc(env(safe-area-inset-top) + 10px) 14px 0}
+.hrow{display:flex;align-items:center;gap:10px}
+.logo{font-weight:800;font-size:19px;letter-spacing:.02em}
+.fam{font-size:13px;opacity:.85}
+.hsp{flex:1}
+.mems{display:flex}
+.av{width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  font-size:19px;border:2px solid #fff;flex:none;position:relative}
+.mems .av{margin-left:-8px}
+.av.sm{width:24px;height:24px;font-size:13px;border-width:1.5px}
+.gear{font-size:22px;padding:4px 2px 4px 8px}
+.net{font-size:11px;background:#C0563A;border-radius:8px;padding:2px 6px}
+#tabs{display:flex;gap:4px;overflow-x:auto;margin-top:10px;scrollbar-width:none}
+#tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;padding:10px 14px 11px;border-radius:14px 14px 0 0;color:#E4F2E6;font-weight:600;font-size:15px;white-space:nowrap}
+.tab.on{background:var(--bg);color:var(--g2)}
+.tab .cnt{font-size:12px;background:var(--leaf);color:#fff;border-radius:9px;padding:1px 7px;margin-left:5px}
+.tab.on .ed{margin-left:6px;opacity:.6;font-size:13px}
+.tab.add{font-size:20px;padding:6px 14px}
+
+/* バナー */
+#banners{padding:0 12px}
+.banner{margin-top:10px;border-radius:14px;padding:11px 14px;background:linear-gradient(90deg,#FFF6D8,#FDF0C2);
+  border:1px solid #F0DC8C;display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;animation:pop .3s}
+.banner.me{background:linear-gradient(90deg,#E6F4D9,#D5EDC1);border-color:#B8DD99}
+.banner .t{flex:1}
+.banner button{background:#fff;border-radius:10px;padding:7px 12px;font-size:14px;font-weight:700;color:var(--g2);border:1px solid var(--line)}
+@keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+
+#wrap{padding:6px 12px 140px;max-width:640px;margin:0 auto}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 6px}
+.btn{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;font-weight:700;font-size:15px;color:var(--g2)}
+.btn.pri{background:var(--g);color:#fff;border-color:var(--g)}
+.btn.warn{color:var(--warn)}
+.btn.full{width:100%;padding:14px}
+
+.usual{margin:8px 0 4px}
+.usual h4,.sec{font-size:13px;color:var(--sub);margin:14px 4px 6px;font-weight:700;display:flex;align-items:center;gap:8px}
+.chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;background:var(--leafL);color:var(--g2);border-radius:20px;padding:8px 13px;font-size:15px;font-weight:600;border:1px solid #CBE6B3}
+.chip.sel{background:var(--g);color:#fff;border-color:var(--g)}
+
+/* 項目 */
+.item{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:16px;padding:12px 10px 12px 12px;
+  margin:8px 0;box-shadow:0 1px 3px rgba(40,80,50,.08);border:1px solid #E8F1E8;min-height:64px;transition:opacity .2s}
+.chk{width:34px;height:34px;border-radius:50%;border:2.5px solid #A9CDA9;flex:none;display:flex;align-items:center;justify-content:center;color:transparent;font-size:18px;font-weight:900}
+.item.done .chk{background:var(--leaf);border-color:var(--leaf);color:#fff}
+.body{flex:1;min-width:0}
+.nm{font-size:18px;font-weight:600;word-break:break-all}
+.qty{font-size:14px;color:var(--g);font-weight:700;margin-left:6px}
+.meta{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;font-size:12px;color:var(--sub)}
+.tag{background:#F1F6F1;border-radius:8px;padding:2px 7px}
+.tag.cl{background:#FFF3CC;color:#8A6A00;font-weight:700}
+.tag.memo{background:none;padding:2px 0}
+.item.done .nm{text-decoration:line-through;color:#9AAA9E}
+.item.other{opacity:.45}
+.item.mine{border-color:#B8DD99;background:#FAFFF5}
+.claim{flex:none;border:1.5px dashed #B8D2B8;border-radius:12px;padding:6px 8px;font-size:12px;font-weight:700;color:var(--g);min-width:56px;text-align:center;line-height:1.2}
+.claim.on{border-style:solid;border-color:var(--leaf);background:var(--leafL)}
+.more{flex:none;font-size:20px;color:#9AB09D;padding:6px 2px 6px 4px}
+.empty{text-align:center;color:var(--sub);padding:44px 10px;font-size:15px;line-height:1.8}
+.donehd{display:flex;align-items:center;gap:8px;margin:20px 4px 4px}
+.donehd .lbl{flex:1;font-weight:700;color:var(--sub);font-size:14px;padding:8px 0}
+.small{font-size:13px;padding:7px 11px;border-radius:11px}
+
+/* 下部ボタン */
+#fab{position:fixed;right:18px;bottom:calc(22px + env(safe-area-inset-bottom));width:64px;height:64px;border-radius:50%;
+  background:var(--g);color:#fff;font-size:36px;box-shadow:0 6px 16px rgba(46,95,60,.35);z-index:30;line-height:1}
+#mic{position:fixed;right:94px;bottom:calc(30px + env(safe-area-inset-bottom));width:50px;height:50px;border-radius:50%;
+  background:#fff;color:var(--g);font-size:24px;box-shadow:0 4px 12px rgba(46,95,60,.25);z-index:30;border:1.5px solid var(--line)}
+#mic.rec{background:var(--warn);color:#fff;animation:pulse 1s infinite}
+@keyframes pulse{50%{transform:scale(1.1)}}
+
+/* シート */
+#ov{position:fixed;inset:0;background:rgba(20,40,25,.38);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+#sheet{background:#fff;width:100%;max-width:640px;border-radius:22px 22px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom));
+  max-height:90vh;overflow:auto;animation:up .22s}
+@keyframes up{from{transform:translateY(40px);opacity:.5}}
+#sheet h3{margin:0 0 12px;font-size:19px;color:var(--g2);display:flex;align-items:center}
+#sheet h3 .x{margin-left:auto;font-size:24px;color:var(--sub);padding:0 4px}
+.fld{margin:10px 0}
+.fld label{display:block;font-size:13px;color:var(--sub);font-weight:700;margin-bottom:5px}
+.in{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px;font-size:17px;background:#FBFDFB}
+.in:focus{outline:2px solid var(--leaf);border-color:transparent}
+.row2{display:flex;gap:10px}.row2>*{flex:1}
+.wrapchips{display:flex;flex-wrap:wrap;gap:7px}
+.hint{font-size:12px;color:var(--sub);margin-top:4px}
+.mlist .mi{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #EEF4EE}
+.code{font-size:24px;font-weight:800;letter-spacing:.04em;color:var(--g2);background:var(--leafL);border-radius:12px;padding:10px 14px;text-align:center;user-select:all}
+
+/* 初回設定 */
+#setup{position:fixed;inset:0;z-index:60;background:linear-gradient(180deg,#E6F4D9,#F4FAF4 40%);overflow:auto;padding:calc(30px + env(safe-area-inset-top)) 20px 40px}
+#setup .box{max-width:460px;margin:0 auto}
+#setup .hero{text-align:center;margin-bottom:18px}
+#setup .hero img{width:84px;height:84px;border-radius:22px;box-shadow:0 6px 16px rgba(46,95,60,.25)}
+#setup h1{color:var(--g2);margin:10px 0 2px;font-size:26px}
+.card{background:#fff;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 1px 4px rgba(40,80,50,.08)}
+.emo{width:48px;height:48px;border-radius:50%;font-size:26px;border:2px solid transparent;background:#F1F6F1}
+.emo.sel{border-color:var(--g);background:var(--leafL)}
+.col{width:36px;height:36px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1.5px var(--line)}
+.col.sel{box-shadow:0 0 0 3px var(--g)}
+#toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#2E3B32;color:#fff;padding:10px 16px;border-radius:12px;
+  font-size:15px;z-index:80;opacity:0;transition:opacity .25s;pointer-events:none;max-width:86vw;text-align:center}
+#toast.on{opacity:.95}
+</style>
+</head>
+<body>
+
+<header id="hdr" class="hide">
+  <div class="hrow">
+    <div><div class="logo">🌿 みどりのかご</div><div class="fam" id="famName"></div></div>
+    <div class="hsp"></div>
+    <span class="net hide" id="net">オフライン</span>
+    <div class="mems" id="mems"></div>
+    <button class="gear" id="gear" aria-label="設定">⚙️</button>
+  </div>
+  <nav id="tabs"></nav>
+</header>
+<div id="banners"></div>
+<main id="wrap"></main>
+<button id="mic" class="hide" aria-label="音声で追加">🎤</button>
+<button id="fab" class="hide" aria-label="追加">＋</button>
+<div id="ov" class="hide"><div id="sheet"></div></div>
+<div id="setup" class="hide"></div>
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="config.js"></script>
+<script>
+/* ===================== 基本 ===================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS = { get:k=>localStorage.getItem('mk_'+k), set:(k,v)=>localStorage.setItem('mk_'+k,v), del:k=>localStorage.removeItem('mk_'+k) };
+const TS = firebase.database.ServerValue.TIMESTAMP;
+firebase.initializeApp(window.FIREBASE_CONFIG);
+const db = firebase.database();
+
+let FAM = LS.get('fam'), ME = LS.get('me'), D = null, cur = LS.get('list'), showDone = false, famRef = null;
+const R = p => db.ref('familylist/' + FAM + (p ? '/' + p : ''));
+
+const CATS = ['野菜・果物','肉・魚','乳製品・卵','パン・主食','冷凍食品','調味料','お菓子・飲料','日用品','その他'];
+const CAT_ICON = {'野菜・果物':'🥬','肉・魚':'🍖','乳製品・卵':'🥚','パン・主食':'🍞','冷凍食品':'🧊','調味料':'🧂','お菓子・飲料':'🍪','日用品':'🧻','その他':'📦'};
+const DEF_STORES = ['スーパー','ドラッグストア','コストコ','その他'];
+const EMOJIS = ['🐻','🐰','🐱','🐶','🦊','🐸','🐼','🐨','🐯','🐧','🐥','🦁','🌻','🍀','🌷','⭐'];
+const COLORS = ['#3E7B4F','#8BC34A','#F2A65A','#E57373','#64B5F6','#BA68C8','#FFD54F','#4DB6AC'];
+const SHOP_TTL = 4 * 3600e3; // 買い物中表示は4時間で自動的に消える
+
+/* ===================== カテゴリ自動推定（簡易辞書） ===================== */
+const DICT = {
+ '野菜・果物':'キャベツ レタス トマト きゅうり 胡瓜 玉ねぎ たまねぎ 玉葱 にんじん 人参 じゃがいも 馬鈴薯 大根 だいこん 白菜 はくさい ねぎ 長ねぎ ほうれん草 ほうれんそう 小松菜 ピーマン なす 茄子 ブロッコリー もやし きのこ しめじ えのき 椎茸 しいたけ まいたけ エリンギ かぼちゃ ごぼう れんこん さつまいも 里芋 生姜 しょうが にんにく 野菜 サラダ アボカド バナナ りんご 林檎 みかん いちご 苺 ぶどう キウイ レモン メロン すいか 梨 柿 桃 果物 フルーツ オクラ ズッキーニ パプリカ 大葉 水菜 セロリ コーン 豆苗 ニラ にら 春菊 チンゲン菜 グレープフルーツ オレンジ',
+ '肉・魚':'肉 豚肉 豚 牛肉 鶏肉 鶏 ささみ ひき肉 挽肉 ミンチ ベーコン ハム ソーセージ ウインナー 魚 鮭 さけ サーモン まぐろ 鮪 刺身 さしみ さば 鯖 あじ 鯵 いわし ぶり たら 鱈 えび 海老 いか たこ あさり しらす ちくわ かまぼこ ツナ 明太子 たらこ 手羽',
+ '乳製品・卵':'牛乳 ミルク 卵 たまご 玉子 ヨーグルト チーズ バター 生クリーム 豆乳 豆腐 とうふ 納豆 なっとう 油揚げ 厚揚げ マーガリン',
+ 'パン・主食':'パン 食パン 米 お米 ごはん ご飯 パスタ スパゲッティ うどん そば 蕎麦 ラーメン 麺 焼きそば シリアル グラノーラ もち 餅 小麦粉 ホットケーキミックス 春雨 パン粉',
+ '冷凍食品':'冷凍 アイス 冷食 餃子 ぎょうざ 冷凍うどん 冷凍ポテト 唐揚げ からあげ フライドポテト',
+ '調味料':'醤油 しょうゆ 味噌 みそ 塩 砂糖 酢 みりん 料理酒 油 サラダ油 オリーブオイル ごま油 マヨネーズ ケチャップ ソース ドレッシング だし 出汁 コンソメ カレールー ルー 胡椒 こしょう ポン酢 めんつゆ 片栗粉 わさび からし 鶏がらスープ ふりかけ ジャム はちみつ',
+ 'お菓子・飲料':'お菓子 菓子 チョコ チョコレート ポテチ ポテトチップス クッキー せんべい グミ ガム ジュース お茶 茶 水 コーヒー 紅茶 ビール 酒 炭酸 麦茶 ゼリー プリン 牛乳パン ヤクルト スナック 飴 あめ',
+ '日用品':'ティッシュ トイレットペーパー トイレ 洗剤 食器用洗剤 シャンプー リンス コンディショナー ボディソープ 石鹸 せっけん 歯ブラシ 歯磨き粉 ハミガキ ラップ アルミホイル ゴミ袋 ごみ袋 電池 オムツ おむつ おしりふき マスク 綿棒 キッチンペーパー スポンジ 柔軟剤 ハンドソープ 絆創膏 ばんそうこう 薬 生理用品 ハンドクリーム 漂白剤 ジップロック'
+};
+// ひらがな→カタカナにそろえて比較（表記ゆれ対策）
+const kata = s => s.replace(/[ぁ-ゖ]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60)).toLowerCase();
+const DICT_K = []; for (const c in DICT) for (const w of DICT[c].split(' ')) DICT_K.push([kata(w), c]);
+function guessCat(name){
+  const k = kata(name || ''); let best = null, len = 0;
+  for (const [w, c] of DICT_K) if (k.includes(w) && w.length > len) { best = c; len = w.length; } // 最長一致
+  return best || 'その他';
+}
+
+/* ===================== 便利関数 ===================== */
+const uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3);
+const key = s => s.replace(/[.#$\[\]\/]/g, '_');
+const fmt = t => { if(!t) return ''; const d = new Date(t); return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`; };
+const member = id => (D && D.members && D.members[id]) || { name:'?', emoji:'❔', color:'#ccc' };
+const avatar = (id, cls='') => { const m = member(id); return `<span class="av ${cls}" style="background:${esc(m.color)}">${esc(m.emoji)}</span>`; };
+const stores = () => (D && D.stores) ? Object.values(D.stores) : DEF_STORES;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2200); }
+function lists(){ return Object.entries((D && D.lists) || {}).map(([id, l]) => ({ id, ...l })).sort((a, b) => (a.order || 0) - (b.order || 0)); }
+function items(lid){ return Object.entries((D && D.items && D.items[lid]) || {}).map(([id, it]) => ({ id, ...it })).sort((a, b) => (a.at || 0) - (b.at || 0)); }
+function activeShops(){ const now = Date.now(); return Object.entries((D && D.shopping) || {}).filter(([id, s]) => s && now - (s.since || 0) < SHOP_TTL); }
+function myShop(){ const s = D && D.shopping && D.shopping[ME]; return s && Date.now() - (s.since || 0) < SHOP_TTL ? s.store : null; }
+
+// 「牛乳2本」→ 名前と数量に分ける
+function parseQty(s){
+  const m = s.match(/^(.+?)\s*([0-9０-９一二三四五六七八九十]+\s*(個|本|パック|袋|枚|kg|g|L|ml|缶|箱|玉|束|房|丁|合|切れ|尾|つ)?)$/);
+  return m && m[1].trim() ? { name: m[1].trim(), qty: m[2] } : { name: s.trim(), qty: '' };
+}
+// 「卵と牛乳」「卵、牛乳」を分割
+function splitNames(t, voice){
+  t = t.replace(/[。．.!！]/g, '').replace(/(を|も)?(買って(きて)?|買う|かう|追加(して)?|お願い(します)?|ください)$/, '');
+  const re = voice ? /[、,，・\s]+|(?<=\S)と(?=\S)/ : /[、,，\n]+/;
+  return t.split(re).map(s => s.trim()).filter(Boolean);
+}
+
+/* ===================== 初回設定 ===================== */
+let setupState = { mode:null, code:'', famName:'岩崎家', name:'', emoji:'🐻', color:COLORS[0], existing:null };
+function genCode(){ const c = 'abcdefghjkmnpqrstuvwxyz23456789'; let s = ''; for (let i = 0; i < 4; i++) s += c[Math.floor(Math.random() * c.length)]; return 'iwasaki-' + s; }
+
+function showSetup(step){
+  $('#setup').classList.remove('hide');
+  const S = setupState, joinParam = new URLSearchParams(location.search).get('join');
+  if (!step && joinParam) { S.mode = 'join'; S.code = joinParam; step = 'join'; }
+  let h = `<div class="box"><div class="hero"><img src="icon-192.png" alt=""><h1>みどりのかご</h1><div style="color:var(--sub)">家族で使う買い物リスト</div></div>`;
+  if (!step) {
+    h += `<div class="card"><button class="btn pri full" onclick="setupState.mode='create';setupState.code=genCode();showSetup('create')">🌱 新しく家族リストを作る</button>
+      <div style="height:10px"></div><button class="btn full" onclick="setupState.mode='join';showSetup('join')">🔑 家族コードで参加する</button></div>
+      <p class="hint" style="text-align:center">家族のだれか1人が「作る」→ 表示される家族コードを共有すると、ほかの人が参加できます。</p>`;
+  } else if (step === 'create') {
+    h += `<div class="card"><div class="fld"><label>家族の名前</label><input class="in" id="sFam" value="${esc(S.famName)}"></div>
+      <div class="fld"><label>家族コード（あとで共有します）</label><div class="code">${esc(S.code)}</div>
+      <div class="hint">このコードを知っている人だけが参加できます。</div></div></div>`;
+    h += profileForm();
+  } else if (step === 'join') {
+    h += `<div class="card"><div class="fld"><label>家族コード</label><input class="in" id="sCode" placeholder="iwasaki-xxxx" value="${esc(S.code)}" autocapitalize="off" autocomplete="off">
+      </div><button class="btn full" onclick="checkCode()">コードを確認</button><div id="codeRes" class="hint"></div></div>`;
+    if (S.existing) h += existingForm() + profileForm();
+  }
+  if (step) h += `<p style="text-align:center"><button class="btn small" onclick="setupState.existing=null;showSetup()">← もどる</button></p>`;
+  h += `</div>`;
+  $('#setup').innerHTML = h;
+  if (step === 'join' && S.code && !S.existing && joinParam) checkCode();
+}
+function profileForm(){
+  const S = setupState;
+  return `<div class="card"><div class="fld"><label>あなたの名前</label><input class="in" id="sName" placeholder="例：りょう" value="${esc(S.name)}"></div>
+    <div class="fld"><label>アバター</label><div class="wrapchips">${EMOJIS.map(e => `<button class="emo ${e===S.emoji?'sel':''}" onclick="setupState.emoji='${e}';syncSetup()">${e}</button>`).join('')}</div></div>
+    <div class="fld"><label>色</label><div class="wrapchips">${COLORS.map(c => `<button class="col ${c===S.color?'sel':''}" style="background:${c}" onclick="setupState.color='${c}';syncSetup()"></button>`).join('')}</div></div>
+    <button class="btn pri full" onclick="finishSetup()">はじめる</button></div>`;
+}
+function existingForm(){
+  const ms = Object.entries(setupState.existing.members || {});
+  if (!ms.length) return '';
+  return `<div class="card"><label class="hint" style="font-weight:700">登録済みのメンバーとして使う</label><div class="mlist">${ms.map(([id, m]) =>
+    `<div class="mi"><span class="av" style="background:${esc(m.color)}">${esc(m.emoji)}</span><b style="flex:1">${esc(m.name)}</b>
+     <button class="btn small" onclick="useExisting('${id}')">この人で使う</button></div>`).join('')}</div>
+     <div class="hint">新しく参加する人は下で名前を入れてください。</div></div>`;
+}
+function syncSetup(){ // 入力値を保持したまま再描画
+  const n = $('#sName'), f = $('#sFam'); if (n) setupState.name = n.value; if (f) setupState.famName = f.value;
+  showSetup(setupState.mode);
+}
+async function checkCode(){
+  const c = ($('#sCode').value || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  setupState.code = c; if (!c) return;
+  $('#codeRes').textContent = '確認中…';
+  try {
+    const s = await db.ref('familylist/' + c).once('value');
+    if (!s.exists()) { $('#codeRes').textContent = 'このコードの家族は見つかりませんでした。'; return; }
+    setupState.existing = s.val(); showSetup('join');
+    $('#codeRes').textContent = '✅ ' + ((s.val().meta || {}).name || '') + ' が見つかりました';
+  } catch (e) { $('#codeRes').textContent = '接続エラー：' + e.message; }
+}
+function useExisting(id){ FAM = setupState.code; ME = id; LS.set('fam', FAM); LS.set('me', ME); enterApp(); }
+async function finishSetup(){
+  const S = setupState; const n = $('#sName'); if (n) S.name = n.value.trim(); const f = $('#sFam'); if (f) S.famName = f.value.trim() || '岩崎家';
+  if (!S.name) { toast('名前を入れてください'); return; }
+  FAM = S.code; ME = uid();
+  if (S.mode === 'create') {
+    const l1 = uid(), l2 = uid(), l3 = uid();
+    await db.ref('familylist/' + FAM).set({
+      meta: { name: S.famName, createdAt: TS },
+      stores: DEF_STORES,
+      lists: { [l1]: { name:'買い物リスト', type:'shop', order:1 }, [l2]: { name:'やりたい事', type:'check', order:2 }, [l3]: { name:'持ち物', type:'check', order:3 } },
+      members: { [ME]: { name: S.name, emoji: S.emoji, color: S.color, joinedAt: TS } }
+    });
+  } else {
+    await R('members/' + ME).set({ name: S.name, emoji: S.emoji, color: S.color, joinedAt: TS });
+  }
+  LS.set('fam', FAM); LS.set('me', ME); enterApp();
+}
+
+/* ===================== 接続・描画 ===================== */
+function enterApp(){
+  history.replaceState(null, '', location.pathname);
+  $('#setup').classList.add('hide'); ['#hdr', '#fab'].forEach(s => $(s).classList.remove('hide'));
+  if (SR) $('#mic').classList.remove('hide');
+  if (famRef) famRef.off();
+  famRef = R(); famRef.on('value', s => { D = s.val() || {}; render(); });
+  db.ref('.info/connected').on('value', s => $('#net').classList.toggle('hide', !!s.val()));
+}
+
+function render(){
+  if (!D) return;
+  $('#famName').textContent = (D.meta && D.meta.name) || '岩崎家';
+  const shopping = Object.fromEntries(activeShops());
+  $('#mems').innerHTML = Object.keys(D.members || {}).map(id => avatar(id)).join('');
+
+  // 買い物中バナー（全員に表示）
+  $('#banners').innerHTML = activeShops().map(([id, s]) => {
+    const m = member(id), me = id === ME;
+    return `<div class="banner ${me ? 'me' : ''}">${avatar(id, 'sm')}<span class="t">🛒 ${esc(me ? 'あなた' : m.name)}が${esc(s.store)}で買い物中</span>
+      ${me ? `<button onclick="endShopping()">終了</button>` : ''}</div>`;
+  }).join('');
+
+  const ls = lists();
+  if (!ls.find(l => l.id === cur)) cur = ls[0] && ls[0].id;
+  $('#tabs').innerHTML = ls.map(l => {
+    const n = items(l.id).filter(i => !i.done).length;
+    return `<button class="tab ${l.id === cur ? 'on' : ''}" onclick="tabTap('${l.id}')">${esc(l.name)}${n ? `<span class="cnt">${n}</span>` : ''}${l.id === cur ? '<span class="ed">✎</span>' : ''}</button>`;
+  }).join('') + `<button class="tab add" onclick="listSheet()" aria-label="リスト追加">＋</button>`;
+
+  const L = ls.find(l => l.id === cur);
+  if (!L) { $('#wrap').innerHTML = `<div class="empty">リストがありません。上の＋で作ってください。</div>`; return; }
+  const all = items(L.id), shop = L.type === 'shop', ms = shop ? myShop() : null;
+  let h = '';
+
+  // ツールバー
+  h += `<div class="tools">`;
+  if (shop) h += ms ? `<button class="btn pri" onclick="endShopping()">🏁 ${esc(ms)}の買い物を終える</button>`
+                    : `<button class="btn pri" onclick="shopSheet()">🛒 買い物に行く</button>`;
+  else h += `<button class="btn" onclick="uncheckAll()">↺ 全部のチェックを外す</button>`;
+  h += `</div>`;
+
+  // いつもの
+  if (shop) {
+    const act = new Set(all.filter(i => !i.done).map(i => i.name));
+    const us = Object.values(D.history || {}).filter(x => !act.has(x.name)).sort((a, b) => b.count - a.count).slice(0, 15);
+    if (us.length) h += `<div class="usual"><h4>⭐ いつもの（タップで追加）</h4><div class="chips">${us.map(u =>
+      `<button class="chip" onclick='quickAdd(${JSON.stringify(u.name).replace(/'/g, "&#39;")})'>＋ ${esc(u.name)}</button>`).join('')}</div></div>`;
+  }
+
+  if (shop) {
+    let act = all.filter(i => !i.done); const done = all.filter(i => i.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
+    if (ms) {
+      // 買い物モード：その店（＋店指定なし）の項目を売り場順に
+      act = act.filter(i => !i.store || i.store === ms);
+      if (!act.length) h += `<div class="empty">🎉 ${esc(ms)}で買う物はもうありません</div>`;
+      for (const c of CATS) {
+        const g = act.filter(i => (i.cat || 'その他') === c); if (!g.length) continue;
+        h += `<div class="sec">${CAT_ICON[c]} ${c}</div>` + g.map(i => row(i, L)).join('');
+      }
+    } else {
+      h += act.length ? act.map(i => row(i, L)).join('') : `<div class="empty">🧺 リストは空っぽです<br>右下の＋か🎤で追加しましょう</div>`;
+    }
+    if (done.length) {
+      h += `<div class="donehd"><button class="lbl" style="text-align:left" onclick="showDone=!showDone;render()">${showDone ? '▾' : '▸'} 購入済み（${done.length}）</button>
+        <button class="btn small warn" onclick="clearDone()">購入済みを片付ける</button></div>`;
+      if (showDone) h += done.map(i => row(i, L)).join('');
+    }
+  } else {
+    // チェックリスト型：その場でチェック（繰り返し使う）
+    h += all.length ? all.map(i => row(i, L)).join('') : `<div class="empty">まだ項目がありません<br>右下の＋で追加しましょう</div>`;
+  }
+  $('#wrap').innerHTML = h;
+}
+
+function row(i, L){
+  const shop = L.type === 'shop', mine = i.claimBy === ME, other = i.claimBy && !mine && !i.done;
+  let meta = '';
+  if (shop && i.cat) meta += `<span class="tag">${CAT_ICON[i.cat] || ''} ${esc(i.cat)}</span>`;
+  if (i.store) meta += `<span class="tag">🏪 ${esc(i.store)}</span>`;
+  if (i.claimBy && !i.done) meta += `<span class="tag cl">${esc(member(i.claimBy).emoji)} ${esc(mine ? 'あなた' : member(i.claimBy).name)}が担当中</span>`;
+  if (i.done && i.doneBy) meta += `<span class="tag">✓ ${esc(member(i.doneBy).name)} ${fmt(i.doneAt)}</span>`;
+  if (i.memo) meta += `<span class="tag memo">📝 ${esc(i.memo)}</span>`;
+  const claimBtn = shop && !i.done
+    ? `<button class="claim ${i.claimBy ? 'on' : ''}" onclick="toggleClaim('${i.id}')">${i.claimBy ? avatar(i.claimBy, 'sm') + '<br>担当中' : '🙋<br>私が買う'}</button>`
+    : (shop && i.done ? `<button class="btn small" onclick="toggleDone('${i.id}')">元に戻す</button>` : '');
+  return `<div class="item ${i.done ? 'done' : ''} ${other ? 'other' : ''} ${mine && !i.done ? 'mine' : ''}">
+    <button class="chk" onclick="toggleDone('${i.id}')" aria-label="チェック">✓</button>
+    <div class="body" onclick="${shop && !i.done ? `toggleClaim('${i.id}')` : `toggleDone('${i.id}')`}">
+      <div class="nm">${esc(i.name)}${i.qty ? `<span class="qty">×${esc(i.qty)}</span>` : ''}</div>${meta ? `<div class="meta">${meta}</div>` : ''}</div>
+    ${claimBtn}<button class="more" onclick="itemSheet('${i.id}')" aria-label="編集">⋯</button></div>`;
+}
+
+/* ===================== 操作 ===================== */
+const IR = id => R(`items/${cur}/${id}`);
+const getItem = id => (D.items && D.items[cur] && D.items[cur][id]) || null;
+const curList = () => (D.lists || {})[cur] || {};
+
+function tabTap(id){ if (id === cur) listSheet(id); else { cur = id; LS.set('list', id); showDone = false; render(); } }
+
+function addItems(names, opt = {}){
+  const L = curList(), ms = myShop();
+  names.forEach((raw, k) => {
+    const p = parseQty(raw); if (!p.name) return;
+    const h = (D.history || {})[key(p.name)];
+    R('items/' + cur).push({
+      name: p.name, qty: opt.qty || p.qty || '', memo: opt.memo || '',
+      store: opt.store !== undefined ? opt.store : (h && h.store) || ms || '',
+      cat: L.type === 'shop' ? (opt.cat || (h && h.cat) || guessCat(p.name)) : '',
+      done: false, at: Date.now() + k, by: ME
+    });
+  });
+}
+function quickAdd(name){ addItems([name]); toast(`「${name}」を追加しました`); }
+
+function toggleClaim(id){
+  const it = getItem(id); if (!it || it.done) return;
+  if (it.claimBy === ME) return IR(id).update({ claimBy: null });
+  if (it.claimBy && !confirm(`${member(it.claimBy).name}が担当中です。代わりにあなたが担当しますか？`)) return;
+  IR(id).update({ claimBy: ME, claimAt: TS });
+}
+function toggleDone(id){
+  const it = getItem(id); if (!it) return;
+  if (it.done) return IR(id).update({ done: false, doneBy: null, doneAt: null });
+  IR(id).update({ done: true, doneBy: ME, doneAt: TS, claimBy: null });
+  if (curList().type === 'shop') // 購入履歴（いつもの用）
+    R('history/' + key(it.name)).transaction(h => ({ name: it.name, cat: it.cat || '', store: it.store || '', count: ((h && h.count) || 0) + 1, last: Date.now() }));
+}
+function clearDone(){
+  const done = items(cur).filter(i => i.done); if (!done.length) return;
+  if (!confirm(`購入済み${done.length}件をリストから消します。よろしいですか？`)) return;
+  const u = {}; done.forEach(i => u[i.id] = null); R('items/' + cur).update(u); toast('片付けました');
+}
+function uncheckAll(){
+  const u = {}; items(cur).filter(i => i.done).forEach(i => { u[i.id + '/done'] = false; u[i.id + '/doneBy'] = null; u[i.id + '/doneAt'] = null; });
+  if (!Object.keys(u).length) return toast('チェックされた項目はありません');
+  R('items/' + cur).update(u); toast('全部のチェックを外しました');
+}
+function startShopping(store){ R('shopping/' + ME).set({ store, since: Date.now() }); closeSheet(); toast(`${store}で買い物モード`); }
+function endShopping(){ R('shopping/' + ME).remove(); toast('買い物モードを終了しました'); }
+
+/* ===================== シート（下から出るパネル） ===================== */
+function openSheet(html){ $('#sheet').innerHTML = html; $('#ov').classList.remove('hide'); }
+function closeSheet(){ $('#ov').classList.add('hide'); $('#sheet').innerHTML = ''; }
+$('#ov').addEventListener('click', e => { if (e.target.id === 'ov') closeSheet(); });
+const hd = t => `<h3>${t}<button class="x" onclick="closeSheet()">×</button></h3>`;
+
+function shopSheet(){
+  openSheet(hd('🛒 どこで買い物しますか？') + `<div class="wrapchips">${stores().map(s =>
+    `<button class="chip" style="font-size:17px;padding:12px 16px" onclick='startShopping(${JSON.stringify(s)})'>${esc(s)}</button>`).join('')}</div>
+    <p class="hint">家族全員の画面に「買い物中」と表示され、その店の品だけが売り場順に並びます。</p>`);
+}
+
+function optChips(name, arr, sel){ return `<div class="wrapchips" data-g="${name}">${arr.map(v =>
+  `<button type="button" class="chip ${v === sel ? 'sel' : ''}" data-v="${esc(v)}" onclick="pickChip(this)">${esc(v || '指定なし')}</button>`).join('')}</div>`; }
+function pickChip(b){ b.parentNode.querySelectorAll('.chip').forEach(c => c.classList.remove('sel')); b.classList.add('sel'); if (b.parentNode.dataset.g === 'cat') catTouched = true; }
+const chipVal = g => { const s = document.querySelector(`[data-g="${g}"] .chip.sel`); return s ? s.dataset.v : ''; };
+let catTouched = false;
+
+// 追加・編集シート
+function itemSheet(id){
+  const L = curList(), shop = L.type === 'shop', it = id ? getItem(id) : null;
+  catTouched = !!it;
+  const st = it ? it.store || '' : (myShop() || LS.get('lastStore') || '');
+  let h = hd(it ? '✏️ 編集' : '＋ 追加') +
+    `<div class="fld"><label>${it ? '名前' : '名前（「、」で区切ると複数まとめて追加）'}</label>
+      <input class="in" id="fName" value="${esc(it ? it.name : '')}" placeholder="${shop ? '例：牛乳、卵、バナナ' : '例：水筒'}" enterkeyhint="done" autocomplete="off"></div>`;
+  if (shop) h += `<div class="row2"><div class="fld"><label>数量</label><input class="in" id="fQty" value="${esc(it ? it.qty : '')}" placeholder="例：2本"></div></div>
+    <div class="fld"><label>お店</label>${optChips('store', ['', ...stores()], st)}</div>
+    <div class="fld"><label>カテゴリ <span id="autoCat" style="font-weight:400"></span></label>${optChips('cat', CATS, it ? it.cat : 'その他')}</div>`;
+  h += `<div class="fld"><label>メモ</label><input class="in" id="fMemo" value="${esc(it ? it.memo : '')}" placeholder="例：低脂肪のやつ"></div>`;
+  h += it ? `<div class="row2"><button class="btn warn" onclick="delItem('${id}')">🗑 削除</button><button class="btn pri" onclick="saveItem('${id}')">保存</button></div>`
+          : `<button class="btn pri full" onclick="saveItem()">追加する</button><div class="hint" style="text-align:center">追加後もこの画面のまま続けて入力できます</div>`;
+  openSheet(h);
+  const f = $('#fName');
+  if (shop) f.addEventListener('input', () => { // 品名からカテゴリを自動推定
+    if (catTouched) return;
+    const first = splitNames(f.value)[0] || ''; const c = guessCat(parseQty(first).name);
+    document.querySelectorAll('[data-g="cat"] .chip').forEach(b => b.classList.toggle('sel', b.dataset.v === c));
+    $('#autoCat').textContent = first ? '（自動）' : '';
+  });
+  f.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) saveItem(id); });
+  if (!it) setTimeout(() => f.focus(), 250);
+}
+function saveItem(id){
+  const shop = curList().type === 'shop', name = $('#fName').value.trim(); if (!name) return;
+  const qty = shop ? $('#fQty').value.trim() : '', memo = $('#fMemo').value.trim(), store = shop ? chipVal('store') : '', cat = shop ? chipVal('cat') : '';
+  if (id) { IR(id).update({ name, qty, memo, store, cat }); closeSheet(); return; }
+  const names = splitNames(name);
+  // 複数まとめて入力した場合は品ごとにカテゴリ自動推定
+  addItems(names, { qty: names.length === 1 ? qty : '', memo, store, cat: names.length === 1 || catTouched ? cat : '' });
+  LS.set('lastStore', store);
+  toast(`${names.length}件追加しました`);
+  $('#fName').value = ''; if ($('#fQty')) $('#fQty').value = ''; $('#fMemo').value = ''; catTouched = false; $('#fName').focus();
+}
+function delItem(id){ IR(id).remove(); closeSheet(); toast('削除しました'); }
+
+// リスト追加・編集
+function listSheet(id){
+  const l = id ? D.lists[id] : null;
+  openSheet(hd(l ? '📋 リストの編集' : '📋 リストを追加') +
+    `<div class="fld"><label>リスト名</label><input class="in" id="lName" value="${esc(l ? l.name : '')}" placeholder="例：週末キャンプ"></div>
+     <div class="fld"><label>種類</label>${optChips('ltype', ['買い物', 'チェックリスト'], l && l.type === 'check' ? 'チェックリスト' : (l ? '買い物' : 'チェックリスト'))}
+     <div class="hint">買い物：担当・購入済み・買い物モード・いつもの／チェックリスト：持ち物など繰り返し使う</div></div>
+     ${l ? `<div class="row2"><button class="btn warn" onclick="delList('${id}')">🗑 削除</button><button class="btn pri" onclick="saveList('${id}')">保存</button></div>`
+         : `<button class="btn pri full" onclick="saveList()">作成</button>`}`);
+}
+function saveList(id){
+  const name = $('#lName').value.trim(); if (!name) return;
+  const type = chipVal('ltype') === '買い物' ? 'shop' : 'check';
+  if (id) R('lists/' + id).update({ name, type });
+  else { const nid = uid(); R('lists/' + nid).set({ name, type, order: Date.now() }); cur = nid; LS.set('list', nid); }
+  closeSheet();
+}
+function delList(id){
+  if (!confirm(`「${D.lists[id].name}」と中の項目をすべて削除します。よろしいですか？`)) return;
+  R().update({ ['lists/' + id]: null, ['items/' + id]: null }); closeSheet();
+}
+
+// 設定
+function settingsSheet(){
+  const url = location.origin + location.pathname, inv = url + '?join=' + encodeURIComponent(FAM);
+  openSheet(hd('⚙️ 設定') + `
+    <div class="fld"><label>家族の名前</label><div class="row2"><input class="in" id="sFamName" value="${esc((D.meta || {}).name || '岩崎家')}">
+      <button class="btn" style="flex:0 0 auto" onclick="R('meta/name').set($('#sFamName').value.trim()||'岩崎家');toast('保存しました')">保存</button></div></div>
+    <div class="fld"><label>家族コード</label><div class="code">${esc(FAM)}</div>
+      <div class="row2" style="margin-top:8px"><button class="btn" onclick="copyText('${esc(FAM)}')">コードをコピー</button><button class="btn pri" onclick="invite('${esc(inv)}')">📨 招待リンクを送る</button></div>
+      <div class="hint">招待リンクを開くとコード入力済みで参加画面が出ます。ホーム画面に追加すればアプリのように使えます。</div></div>
+    <div class="fld"><label>メンバー</label><div class="mlist">${Object.entries(D.members || {}).map(([id, m]) =>
+      `<div class="mi">${avatar(id)}<b style="flex:1">${esc(m.name)}${id === ME ? '（この端末）' : ''}</b>
+       ${id === ME ? `<button class="btn small" onclick="profileSheet()">変更</button>` : `<button class="btn small" onclick="switchMe('${id}')">この人に切替</button>`}</div>`).join('')}</div>
+      <button class="btn small" style="margin-top:8px" onclick="addMemberSheet()">＋ メンバーを追加</button></div>
+    <div class="fld"><label>お店</label><div class="wrapchips">${stores().map((s, i) => `<span class="chip">${esc(s)} <button onclick="delStore(${i})" style="color:var(--warn)">×</button></span>`).join('')}</div>
+      <div class="row2" style="margin-top:8px"><input class="in" id="newStore" placeholder="例：業務スーパー"><button class="btn" style="flex:0 0 auto" onclick="addStore()">追加</button></div></div>
+    <div class="fld" style="margin-top:20px"><button class="btn warn full" onclick="leave()">この端末で家族リストから抜ける</button>
+      <div class="hint">データは消えません。家族コードを入れればまた参加できます。</div></div>`);
+}
+function copyText(t){ navigator.clipboard.writeText(t).then(() => toast('コピーしました'), () => prompt('コピーしてください', t)); }
+function invite(u){
+  const text = `家族の買い物リスト「みどりのかご」に参加してね。\n家族コード：${FAM}\n${u}`;
+  if (navigator.share) navigator.share({ title: 'みどりのかご', text, url: u }).catch(() => {}); else copyText(text);
+}
+function switchMe(id){ if (!confirm(`この端末を「${member(id).name}」として使いますか？`)) return; ME = id; LS.set('me', id); closeSheet(); render(); }
+function leave(){ if (!confirm('この端末の設定を消して最初の画面に戻ります。')) return; if (famRef) famRef.off(); ['fam', 'me', 'list'].forEach(LS.del); location.reload(); }
+function addStore(){ const v = $('#newStore').value.trim(); if (!v) return; R('stores').set([...stores(), v]); setTimeout(settingsSheet, 300); }
+function delStore(i){ const a = stores(); a.splice(i, 1); R('stores').set(a); setTimeout(settingsSheet, 300); }
+let pf = {};
+function profileSheet(newMember){
+  const m = newMember ? { name:'', emoji:'🐰', color:COLORS[4] } : member(ME); pf = { ...m, newMember };
+  drawProfile();
+}
+function drawProfile(){
+  openSheet(hd(pf.newMember ? '＋ メンバーを追加' : '🙂 プロフィール') +
+    `<div class="fld"><label>名前</label><input class="in" id="pName" value="${esc(pf.name)}" oninput="pf.name=this.value"></div>
+     <div class="fld"><label>アバター</label><div class="wrapchips">${EMOJIS.map(e => `<button class="emo ${e === pf.emoji ? 'sel' : ''}" onclick="pf.emoji='${e}';drawProfile()">${e}</button>`).join('')}</div></div>
+     <div class="fld"><label>色</label><div class="wrapchips">${COLORS.map(c => `<button class="col ${c === pf.color ? 'sel' : ''}" style="background:${c}" onclick="pf.color='${c}';drawProfile()"></button>`).join('')}</div></div>
+     <button class="btn pri full" onclick="saveProfile()">保存</button>
+     ${pf.newMember ? '<div class="hint">スマホを持っていない家族（子どもなど）を登録できます。本人のスマホで参加する場合は招待リンクを送ってください。</div>' : ''}`);
+}
+const addMemberSheet = () => profileSheet(true);
+function saveProfile(){
+  if (!pf.name.trim()) return toast('名前を入れてください');
+  const v = { name: pf.name.trim(), emoji: pf.emoji, color: pf.color };
+  if (pf.newMember) R('members/' + uid()).set({ ...v, joinedAt: TS }); else R('members/' + ME).update(v);
+  closeSheet(); toast('保存しました');
+}
+$('#gear').onclick = settingsSheet;
+$('#mems').onclick = settingsSheet;
+$('#fab').onclick = () => itemSheet();
+
+/* ===================== 音声入力 ===================== */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+$('#mic').onclick = () => {
+  const r = new SR(); r.lang = 'ja-JP'; r.interimResults = false; r.maxAlternatives = 1;
+  $('#mic').classList.add('rec'); toast('🎤 どうぞ（例：「卵と牛乳」）');
+  r.onresult = e => {
+    const t = e.results[0][0].transcript, names = splitNames(t, true);
+    if (names.length) { addItems(names); toast('追加：' + names.join('・')); } else toast('聞き取れませんでした');
+  };
+  r.onerror = e => toast('音声入力エラー：' + e.error);
+  r.onend = () => $('#mic').classList.remove('rec');
+  r.start();
+};
+
+/* ===================== 起動 ===================== */
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+// 4時間以上たった自分の「買い物中」は自動で消す
+setInterval(() => { if (D && D.shopping && D.shopping[ME] && !myShop()) endShopping(); render(); }, 60e3);
+if (FAM && ME) enterApp(); else showSetup();
+</script>
+</body>
+</html>
