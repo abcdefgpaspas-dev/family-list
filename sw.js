@@ -1,6 +1,6 @@
 // オフラインでもアプリ本体を開けるようにするService Worker
 // ファイルを更新したら VERSION を上げる
-const VERSION = 'midori-v5';
+const VERSION = 'midori-v6';
 const FB = 'https://www.gstatic.com/firebasejs/10.12.2/';
 const ASSETS = ['./', 'index.html', 'manifest.webmanifest', 'config.js', 'icon-192.png', 'icon-512.png',
   FB + 'firebase-app-compat.js', FB + 'firebase-database-compat.js'];

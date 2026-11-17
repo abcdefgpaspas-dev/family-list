@@ -442,9 +442,9 @@ function enterApp(){
   $('#mic').classList.remove('hide'); // 音声APIがなくてもキーボード音声入力に案内するので常に表示
   refs.forEach(r => r.off()); refs = []; loaded = new Set(); D = {}; P = {}; migrated = false;
   // 共有データは項目ごとに購読（private 以下は読み込まない＝相手の非公開リストは端末に一切届かない）
-  for (const k of ['meta', 'members', 'lists', 'items', 'stores', 'history', 'shopping', 'thumbs']) { // thumbs=一覧用の小さなサムネイルだけ（写真本体は開いたときに読む）
+  for (const k of ['meta', 'members', 'lists', 'items', 'stores', 'history', 'shopping', 'thumbs', 'settings']) { // thumbs=一覧用の小さなサムネイルだけ（写真本体は開いたときに読む）
     const r = R(k); refs.push(r);
-    r.on('value', s => { D[k] = s.val(); loaded.add(k); if (loaded.size >= 8) { migrate(); render(); } });
+    r.on('value', s => { D[k] = s.val(); loaded.add(k); if (loaded.size >= 9) { migrate(); render(); resumeNotify(); } });
   }
   PK = LS.get('pk_' + FAM); listenPrivate();
   db.ref('.info/connected').on('value', s => $('#net').classList.toggle('hide', !!s.val()));
@@ -470,7 +470,7 @@ function migrate(){
 
 /* ===================== 描画 ===================== */
 function render(){
-  if (loaded.size < 8) return;
+  if (loaded.size < 9) return;
   $('#famName').textContent = (D.meta && D.meta.name) || '岩崎家';
   $('#mems').innerHTML = Object.keys(D.members || {}).map(id => avatar(id)).join('');
 
@@ -601,13 +601,15 @@ function addItems(names, opt = {}){
     const base = { done: false, at: Date.now() + k, by: ME, memo: opt.memo || '' };
     if (L.type === 'todo') { // やること：文中の日付を自動で読む
       const p = parseTodo(raw); if (!p.name) return;
-      LR(cur).push({ ...base, name: p.name, date: p.date || '', dtype: p.dtype || '', who: '', repeat: '', rday: 0 }); return;
+      const v = { ...base, name: p.name, date: p.date || '', dtype: p.dtype || '', who: '', repeat: '', rday: 0 };
+      LR(cur).push(v); if (!isPriv(cur)) queueNotify({ t: 'todo', text: todoLine(v) }); return;
     }
     const p = parseQty(raw); if (!p.name) return;
     const h = (D.history || {})[key(p.name)];
     keys.push(LR(cur).push({ ...base, name: p.name, qty: opt.qty || p.qty || '',
       store: opt.store !== undefined ? opt.store : (h && h.store) || ms || '',
       cat: L.type === 'shop' ? (opt.cat || (h && h.cat) || guessCat(p.name)) : '' }).key);
+    if (!isPriv(cur)) queueNotify({ t: 'add', list: L.name, name: p.name + (opt.qty || p.qty ? '×' + (opt.qty || p.qty) : '') });
   });
   return keys;
 }
@@ -674,7 +676,7 @@ function uncheckAll(){
 }
 function startShopping(store){
   if (isPriv(cur)) LS.set('pshop', JSON.stringify({ store, since: Date.now() })); // 端末内だけ
-  else R('shopping/' + ME).set({ store, since: Date.now() });
+  else { R('shopping/' + ME).set({ store, since: Date.now() }); notifyShopping(store); }
   closeSheet(); render(); toast(`${store}で買い物モード`);
 }
 function endShopping(priv){ if (priv) LS.del('pshop'); else R('shopping/' + ME).remove(); render(); toast('買い物モードを終了しました'); }
@@ -776,7 +778,10 @@ function saveTodo(id){
   const p = parseTodo(raw), date = $('#tDate').value || p.date || '';
   const v = { name: p.name, date, dtype: date ? (chipVal('dtype') || 'due') : '', who: isPriv(cur) ? '' : chipVal('who'),
     repeat: date ? chipVal('rep') : '', rday: date ? pYmd(date).getDate() : 0, memo: $('#tMemo').value.trim() };
+  const old = id ? getItem(id) : null;
   if (id) IR(id).update(v); else LR(cur).push({ ...v, done: false, at: Date.now(), by: ME });
+  // 通知：新規追加、または担当が付いた／変わったとき（非公開リストは通知しない）
+  if (!isPriv(cur) && (!old || (v.who && v.who !== (old.who || '')))) queueNotify({ t: 'todo', text: todoLine(v) });
   closeSheet(); toast(id ? '保存しました' : `「${v.name}」を追加しました`);
 }
 
@@ -828,6 +833,7 @@ function settingsSheet(){
       <button class="btn small" style="margin-top:8px" onclick="profileSheet(true)">＋ メンバーを追加</button></div>
     <div class="fld"><label>お店</label><div class="wrapchips">${stores().map((s, i) => `<span class="chip">${esc(s)} <button onclick="delStore(${i})" style="color:var(--warn)">×</button></span>`).join('')}</div>
       <div class="row2" style="margin-top:8px"><input class="in" id="newStore" placeholder="例：業務スーパー"><button class="btn" style="flex:0 0 auto" onclick="addStore()">追加</button></div></div>
+    ${lineSettingsHtml()}
     <div class="fld"><label>🔒 非公開リストの引き継ぎコード</label>
       ${PK ? `<div id="pkBox"><button class="btn small" onclick="showPK()">コードを表示</button></div>`
            : `<div class="hint">まだ非公開リストはありません（リスト追加で「自分だけ」を選ぶと作られます）</div>`}
@@ -877,6 +883,89 @@ $('#due').onclick = () => { // 近い期限があるやることリストへ
   const l = lists().find(l => l.type === 'todo' && items(l.id).some(i => !i.done && i.date && dayDiff(i.date) <= 3));
   if (l) { cur = l.id; LS.set('list', cur); LS.set('tf', 'all'); render(); }
 };
+
+/* ===================== LINE通知 ===================== */
+// 中継（Google Apps Script）にPOST → LINE公式アカウント「みどりのかご」から家族グループへ。
+// 月200通の無料枠を意識して、追加・やることは3分ぶんまとめて1通にする。非公開リストは一切通知しない。
+const lineCfg = () => (D.settings && D.settings.line) || {};
+const lineOn = () => { const c = lineCfg(); return !!(c.on && c.url && c.secret); };
+const BATCH_MS = 3 * 60e3;
+let nTimer = null;
+const mdS = s => { const d = pYmd(s); return `${d.getMonth() + 1}/${d.getDate()}`; };
+function todoLine(v){
+  const w = v.who === 'both' ? 'ふたり' : (v.who ? member(v.who).name : '');
+  const d = v.date ? `（${mdS(v.date)}${v.dtype === 'on' ? '' : 'まで'}）` : '';
+  return `✅ ${member(ME).name}${w ? '→' + w : ''}：${v.name}${d}`;
+}
+async function postLine(text, keepalive){
+  const c = lineCfg(); if (!c.url || !c.secret) return { ok: false, reason: 'not-configured' };
+  const body = JSON.stringify({ secret: c.secret, text });
+  try { // text/plain の単純リクエスト → GASの応答（JSON）を読める
+    const r = await fetch(c.url, { method: 'POST', body, keepalive: !!keepalive, headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
+    try { return await r.json(); } catch (e) { return { ok: true, opaque: true }; }
+  } catch (e) {
+    try { await fetch(c.url, { method: 'POST', body, mode: 'no-cors', keepalive: !!keepalive }); return { ok: true, opaque: true }; }
+    catch (e2) { console.log('[LINE] 送信失敗', e2); return { ok: false, reason: e2.message }; }
+  }
+}
+const readQ = () => { try { return JSON.parse(LS.get('nq') || '[]'); } catch (e) { return []; } };
+function queueNotify(ev){
+  if (!lineOn()) return;
+  const q = readQ(); q.push({ ...ev, at: Date.now() }); LS.set('nq', JSON.stringify(q));
+  if (!nTimer) nTimer = setTimeout(() => flushNotify(), BATCH_MS);
+}
+function buildLines(q){
+  const me = member(ME).name, lines = [], adds = {};
+  q.forEach(e => { if (e.t === 'add') (adds[e.list] = adds[e.list] || []).push(e.name); });
+  Object.entries(adds).forEach(([l, ns]) => lines.push(`📝 ${me}：${[...new Set(ns)].join('、')}を追加（${l}）`));
+  q.filter(e => e.t === 'todo').forEach(e => lines.push(e.text));
+  return lines;
+}
+function flushNotify(keepalive, head){
+  clearTimeout(nTimer); nTimer = null;
+  const q = readQ(); LS.del('nq');
+  const lines = [...(head ? [head] : []), ...buildLines(q)];
+  if (!lines.length || !lineOn()) return;
+  postLine(lines.join('\n'), keepalive).then(r => console.log('[LINE]', r));
+}
+// アプリを閉じる／切り替えるときは、まとめ待ちの分をすぐ送る
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && readQ().length) flushNotify(true); });
+function resumeNotify(){ // 前回送りそびれた分
+  const q = readQ(); if (!q.length || nTimer) return;
+  const wait = BATCH_MS - (Date.now() - q[0].at);
+  if (wait <= 0) flushNotify(); else nTimer = setTimeout(() => flushNotify(), wait);
+}
+function notifyShopping(store){
+  if (!lineOn()) return;
+  // 同じ店の連続開始（60分以内）は送らない。まとめ待ちの追加も同じ1通に含める
+  let last = {}; try { last = JSON.parse(LS.get('lastShopN') || '{}'); } catch (e) {}
+  if (last.store === store && Date.now() - last.at < 60 * 60e3) return;
+  LS.set('lastShopN', JSON.stringify({ store, at: Date.now() }));
+  flushNotify(false, `🛒 ${member(ME).name}が${store}で買い物中`);
+}
+function lineSettingsHtml(){
+  const c = lineCfg();
+  return `<div class="fld"><label>💬 LINE通知</label>
+    <div class="seg" style="display:inline-flex;margin-bottom:8px"><button class="${c.on ? 'on' : ''}" onclick="saveLine(true)">オン</button><button class="${c.on ? '' : 'on'}" onclick="saveLine(false)">オフ</button></div>
+    <input class="in" id="lnUrl" placeholder="中継URL（https://script.google.com/macros/s/…/exec）" value="${esc(c.url || '')}" autocomplete="off" autocapitalize="off" style="margin-bottom:8px">
+    <input class="in" id="lnSecret" placeholder="シークレット" value="${esc(c.secret || '')}" autocomplete="off" autocapitalize="off">
+    <div class="row2" style="margin-top:8px"><button class="btn" onclick="saveLine()">保存</button><button class="btn pri" onclick="testLine()">📨 テスト送信</button></div>
+    <div class="hint" id="lnRes">買い物モード開始・品物の追加（3分まとめ）・やることの追加／担当を家族のLINEグループに通知します。非公開リストは通知しません。</div></div>`;
+}
+function saveLine(on){
+  const c = lineCfg(), v = { on: on === undefined ? !!c.on : on, url: $('#lnUrl').value.trim(), secret: $('#lnSecret').value.trim() };
+  R('settings/line').set(v).then(() => { toast(v.on ? 'LINE通知：オン' : 'LINE通知：オフ'); setTimeout(settingsSheet, 200); });
+}
+async function testLine(){
+  const url = $('#lnUrl').value.trim(), secret = $('#lnSecret').value.trim();
+  if (!url || !secret) return toast('中継URLとシークレットを入れてください');
+  await R('settings/line').update({ url, secret });
+  $('#lnRes').textContent = '送信中…';
+  const r = await postLine(`🌿 テスト通知：${member(ME).name}さんの「みどりのかご」からの通知はこのように届きます`);
+  $('#lnRes').textContent = r.ok ? (r.opaque ? '送信しました（LINEで届いたか確認してください）' : '✅ 送信しました。LINEグループを確認してください')
+    : r.reason === 'no-group' ? '⚠️ まだLINEグループが登録されていません。公式アカウント「みどりのかご」を家族のLINEグループに招待してください（送信はスキップしてGASのログに記録しました）'
+    : r.reason === 'secret' ? '⚠️ シークレットが違います' : r.reason === 'no-token' ? '⚠️ GAS側にLINEのトークンが未設定です' : '⚠️ 送信できませんでした：' + (r.reason || r.code);
+}
 
 /* ===================== 写真 ===================== */
 let sp = { id: null, list: [] }; // 追加・編集画面で扱っている写真
