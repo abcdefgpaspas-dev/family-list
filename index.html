@@ -423,7 +423,7 @@ async function finishSetup(){
 function enterApp(){
   history.replaceState(null, '', location.pathname);
   $('#setup').classList.add('hide'); ['#hdr', '#fab'].forEach(s => $(s).classList.remove('hide'));
-  if (SR) $('#mic').classList.remove('hide');
+  $('#mic').classList.remove('hide'); // 音声APIがなくてもキーボード音声入力に案内するので常に表示
   refs.forEach(r => r.off()); refs = []; loaded = new Set(); D = {}; P = {}; migrated = false;
   // 共有データは項目ごとに購読（private 以下は読み込まない＝相手の非公開リストは端末に一切届かない）
   for (const k of ['meta', 'members', 'lists', 'items', 'stores', 'history', 'shopping']) {
@@ -658,12 +658,15 @@ function pickChip(b){ b.parentNode.querySelectorAll('.chip').forEach(c => c.clas
 const chipVal = g => { const s = document.querySelector(`[data-g="${g}"] .chip.sel`); return s ? s.dataset.v : ''; };
 let catTouched = false;
 
-function itemSheet(id){
+let voiceMode = false; // マイクボタンから開いたとき true（確定時に「と」や空白でも分割）
+const voiceNote = () => voiceMode ? `<div class="privnote" style="background:#EAF6E2;border-color:#A8D38A;color:var(--g2);margin:0 0 6px">🎤 キーボードのマイクボタンで話してください。<br>「卵と牛乳」のように続けて話せば、まとめて追加されます。話し終えたら「改行／完了」か追加ボタン。</div>` : '';
+function itemSheet(id, voice){
+  voiceMode = !!voice && !id;
   const L = curList(); if (L.type === 'todo') return todoSheet(id);
   const shop = L.type === 'shop', it = id ? getItem(id) : null;
   catTouched = !!it;
   const st = it ? it.store || '' : (myShop() || LS.get('lastStore') || '');
-  let h = hd(it ? '✏️ 編集' : '＋ 追加') +
+  let h = hd(it ? '✏️ 編集' : '＋ 追加') + voiceNote() +
     `<div class="fld"><label>${it ? '名前' : '名前（「、」で区切ると複数まとめて追加）'}</label>
       <input class="in" id="fName" value="${esc(it ? it.name : '')}" placeholder="${shop ? '例：牛乳、卵、バナナ' : '例：水筒'}" enterkeyhint="done" autocomplete="off"></div>`;
   if (shop) h += `<div class="fld"><label>数量</label><input class="in" id="fQty" value="${esc(it ? it.qty : '')}" placeholder="例：2本"></div>
@@ -681,13 +684,13 @@ function itemSheet(id){
     $('#autoCat').textContent = first ? '（自動）' : '';
   });
   f.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) saveItem(id); });
-  if (!it) setTimeout(() => f.focus(), 250);
+  if (!it) { if (voiceMode) f.focus(); setTimeout(() => f.focus(), 250); }
 }
 function saveItem(id){
   const shop = curList().type === 'shop', name = $('#fName').value.trim(); if (!name) return;
   const qty = shop ? $('#fQty').value.trim() : '', memo = $('#fMemo').value.trim(), store = shop ? chipVal('store') : '', cat = shop ? chipVal('cat') : '';
   if (id) { IR(id).update({ name, qty, memo, store, cat }); closeSheet(); return; }
-  const names = splitNames(name);
+  const names = splitNames(name, voiceMode); // 音声モードは「と」「、」「，」空白で分割（末尾の「。」も除去）
   addItems(names, { qty: names.length === 1 ? qty : '', memo, store, cat: names.length === 1 || catTouched ? cat : '' });
   LS.set('lastStore', store);
   toast(`${names.length}件追加しました`);
@@ -699,7 +702,7 @@ function delItem(id){ IR(id).remove(); closeSheet(); toast('削除しました')
 function todoSheet(id){
   const it = id ? getItem(id) : null, priv = isPriv(cur);
   const whoOpts = [...Object.entries(D.members || {}).map(([mid, m]) => [mid, avatarOf(m, 'xs') + ' ' + esc(m.name)]), ['both', '👫 ふたり'], ['', '未定']];
-  let h = hd(it ? '✏️ やることを編集' : '＋ やることを追加') +
+  let h = hd(it ? '✏️ やることを編集' : '＋ やることを追加') + voiceNote().replace('「卵と牛乳」のように続けて話せば、まとめて追加されます。','「習字代振込 12月5日まで」のように日付も話せます。') +
     `<div class="fld"><label>やること</label><input class="in" id="tName" value="${esc(it ? it.name : '')}" placeholder="例：習字代振込 〜12/5" autocomplete="off" enterkeyhint="done">
       <div class="hint">「〜12/5」「12/5まで」→期限日、「車検 11/6」→予定日として自動で入ります</div></div>
     <div class="fld"><label>日付の種類</label>${optChips('dtype', [['due', '⏳ 期限日（〜までに）'], ['on', '📌 予定日（この日に）']], it ? (it.dtype || 'due') : 'due')}</div>
@@ -719,10 +722,10 @@ function todoSheet(id){
     document.querySelectorAll('[data-g="dtype"] .chip').forEach(b => b.classList.toggle('sel', b.dataset.v === p.dtype));
   });
   f.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) saveTodo(id); });
-  if (!it) setTimeout(() => f.focus(), 250);
+  if (!it) { if (voiceMode) f.focus(); setTimeout(() => f.focus(), 250); }
 }
 function saveTodo(id){
-  const raw = $('#tName').value.trim(); if (!raw) return;
+  const raw = $('#tName').value.trim().replace(/[。．.]+$/, ''); if (!raw) return;
   const p = parseTodo(raw), date = $('#tDate').value || p.date || '';
   const v = { name: p.name, date, dtype: date ? (chipVal('dtype') || 'due') : '', who: isPriv(cur) ? '' : chipVal('who'),
     repeat: date ? chipVal('rep') : '', rday: date ? pYmd(date).getDate() : 0, memo: $('#tMemo').value.trim() };
@@ -827,17 +830,35 @@ $('#due').onclick = () => { // 近い期限があるやることリストへ
 };
 
 /* ===================== 音声入力 ===================== */
+// 1) 使える環境ではWeb Speech APIで直接追加
+// 2) iOSのホーム画面アプリ・未対応・エラー時は、追加画面を開いてキーボードのマイクに案内
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+const KB_MSG = 'キーボードのマイク🎤ボタンで話してください（『卵と牛乳』のように続けて話せばOK）';
+function keyboardVoice(){
+  itemSheet(null, true);           // 追加画面を開いて入力欄にフォーカス → キーボードが開く
+  toast(KB_MSG);
+}
 $('#mic').onclick = () => {
-  const r = new SR(); r.lang = 'ja-JP'; r.interimResults = false; r.maxAlternatives = 1;
-  $('#mic').classList.add('rec'); toast('🎤 どうぞ（例：「卵と牛乳」）');
+  if (!SR || (isIOS && isStandalone) || LS.get('nosr')) return keyboardVoice();
+  let r, handled = false;
+  const fallback = () => { if (handled) return; handled = true; $('#mic').classList.remove('rec'); keyboardVoice(); };
+  try { r = new SR(); } catch (e) { return keyboardVoice(); }
+  r.lang = 'ja-JP'; r.interimResults = false; r.maxAlternatives = 1;
   r.onresult = e => {
+    handled = true;
     const t = e.results[0][0].transcript, names = splitNames(t, curList().type !== 'todo');
-    if (names.length) { addItems(names); toast('追加：' + names.join('・')); } else toast('聞き取れませんでした');
+    if (names.length) { addItems(names); toast('追加：' + names.join('・')); } else toast('聞き取れませんでした。もう一度どうぞ');
   };
-  r.onerror = e => toast('音声入力エラー：' + e.error);
-  r.onend = () => $('#mic').classList.remove('rec');
-  r.start();
+  r.onerror = e => {
+    // 権限なし・サービス不可の端末では次回から最初からキーボード案内にする
+    if (['not-allowed', 'service-not-allowed'].includes(e.error)) LS.set('nosr', '1');
+    if (e.error === 'aborted') { handled = true; return; }
+    fallback();                    // 分かりにくいエラー表示は出さずに切り替える
+  };
+  r.onend = () => { $('#mic').classList.remove('rec'); if (!handled) fallback(); };
+  try { r.start(); $('#mic').classList.add('rec'); toast('🎤 どうぞ（例：「卵と牛乳」）'); } catch (e) { fallback(); }
 };
 
 /* ===================== 起動 ===================== */
