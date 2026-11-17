@@ -153,6 +153,21 @@ input,select,textarea{font:inherit;color:inherit}
 #setup .hero img{width:84px;height:84px;border-radius:22px;box-shadow:0 6px 16px rgba(46,95,60,.25)}
 #setup h1{color:var(--g2);margin:10px 0 2px;font-size:26px}
 .card{background:#fff;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 1px 4px rgba(40,80,50,.08)}
+/* 写真 */
+.thumbw{position:relative;flex:none;width:46px;height:46px}
+.thumb{width:46px;height:46px;border-radius:10px;object-fit:cover;border:1px solid var(--line);display:block}
+.thumbw .n{position:absolute;right:-5px;bottom:-5px;background:var(--g);color:#fff;font-size:10px;font-weight:800;border-radius:8px;padding:1px 5px;border:1.5px solid #fff}
+.phs{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.ph{position:relative}
+.ph img{width:78px;height:78px;object-fit:cover;border-radius:12px;border:1px solid var(--line);display:block}
+.ph .del{position:absolute;top:-7px;right:-7px;background:#fff;border:1.5px solid var(--line);border-radius:50%;width:26px;height:26px;font-size:13px;color:var(--warn);font-weight:900}
+.phadd{width:78px;height:78px;border:2px dashed #B8D2B8;border-radius:12px;color:var(--g);font-weight:700;font-size:13px;line-height:1.4;background:#FBFDFB}
+#viewer{position:fixed;inset:0;background:#000;z-index:90;display:flex;flex-direction:column}
+#viewer .vx{position:absolute;top:calc(env(safe-area-inset-top) + 12px);right:12px;z-index:2;background:rgba(255,255,255,.92);border-radius:22px;padding:9px 18px;font-weight:800;font-size:16px}
+#viewer .vs{flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+#viewer .vp{flex:none;width:100vw;height:100%;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;overflow:hidden;touch-action:pan-x}
+#viewer .vp img{max-width:100%;max-height:100%;transform-origin:center;user-select:none;-webkit-user-drag:none}
+#viewer .vc{color:#fff;text-align:center;padding:10px 10px calc(env(safe-area-inset-bottom) + 14px);font-size:15px}
 #toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#2E3B32;color:#fff;padding:10px 16px;border-radius:12px;
   font-size:15px;z-index:80;opacity:0;transition:opacity .25s;pointer-events:none;max-width:86vw;text-align:center}
 #toast.on{opacity:.95}
@@ -177,6 +192,7 @@ input,select,textarea{font:inherit;color:inherit}
 <button id="fab" class="hide" aria-label="追加">＋</button>
 <div id="ov" class="hide"><div id="sheet"></div></div>
 <div id="setup" class="hide"></div>
+<div id="viewer" class="hide"></div>
 <div id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -195,7 +211,7 @@ let FAM = LS.get('fam'), ME = LS.get('me'), cur = LS.get('list'), showDone = fal
 let D = {};          // 家族の共有データ（meta, members, lists, items, stores, history, shopping）
 let P = {};          // 自分だけの非公開データ（lists, items）
 let PK = null;       // 非公開データの秘密キー（この端末のlocalStorageにだけ保存）
-let loaded = new Set(), refs = [], privRef = null, migrated = false;
+let loaded = new Set(), refs = [], privRefs = [], migrated = false;
 let startType = new URLSearchParams(location.search).get('list'); // ホーム画面ショートカット用
 const R = p => db.ref('familylist/' + FAM + (p ? '/' + p : ''));
 
@@ -426,17 +442,19 @@ function enterApp(){
   $('#mic').classList.remove('hide'); // 音声APIがなくてもキーボード音声入力に案内するので常に表示
   refs.forEach(r => r.off()); refs = []; loaded = new Set(); D = {}; P = {}; migrated = false;
   // 共有データは項目ごとに購読（private 以下は読み込まない＝相手の非公開リストは端末に一切届かない）
-  for (const k of ['meta', 'members', 'lists', 'items', 'stores', 'history', 'shopping']) {
+  for (const k of ['meta', 'members', 'lists', 'items', 'stores', 'history', 'shopping', 'thumbs']) { // thumbs=一覧用の小さなサムネイルだけ（写真本体は開いたときに読む）
     const r = R(k); refs.push(r);
-    r.on('value', s => { D[k] = s.val(); loaded.add(k); if (loaded.size >= 7) { migrate(); render(); } });
+    r.on('value', s => { D[k] = s.val(); loaded.add(k); if (loaded.size >= 8) { migrate(); render(); } });
   }
   PK = LS.get('pk_' + FAM); listenPrivate();
   db.ref('.info/connected').on('value', s => $('#net').classList.toggle('hide', !!s.val()));
 }
 function listenPrivate(){
-  if (privRef) privRef.off(); P = {}; privRef = null;
+  privRefs.forEach(r => r.off()); privRefs = []; P = {};
   if (!PK) return;
-  privRef = R('private/' + PK); privRef.on('value', s => { P = s.val() || {}; render(); });
+  for (const k of ['lists', 'items', 'thumbs']) { // 非公開の写真本体（photos）は開いたときだけ読む
+    const r = R('private/' + PK + '/' + k); privRefs.push(r); r.on('value', s => { P[k] = s.val(); render(); });
+  }
 }
 function ensurePK(){ if (!PK) { PK = rand32(); LS.set('pk_' + FAM, PK); listenPrivate(); } return PK; }
 // 既存データへの追加（壊さず足すだけ）
@@ -452,7 +470,7 @@ function migrate(){
 
 /* ===================== 描画 ===================== */
 function render(){
-  if (loaded.size < 7) return;
+  if (loaded.size < 8) return;
   $('#famName').textContent = (D.meta && D.meta.name) || '岩崎家';
   $('#mems').innerHTML = Object.keys(D.members || {}).map(id => avatar(id)).join('');
 
@@ -530,7 +548,7 @@ function row(i, L){
     : (shop && i.done ? `<button class="btn small" onclick="toggleDone('${i.id}')">元に戻す</button>` : '');
   return `<div class="item ${i.done ? 'done' : ''} ${other ? 'other' : ''} ${mine && !i.done ? 'mine' : ''}">
     <button class="chk" onclick="toggleDone('${i.id}')" aria-label="チェック">✓</button>
-    <div class="body" onclick="${shop && !i.done ? `toggleClaim('${i.id}')` : `toggleDone('${i.id}')`}">
+    ${thumbHtml(i.id)}<div class="body" onclick="${shop && !i.done ? `toggleClaim('${i.id}')` : `toggleDone('${i.id}')`}">
       <div class="nm">${esc(i.name)}${i.qty ? `<span class="qty">×${esc(i.qty)}</span>` : ''}</div>${meta ? `<div class="meta">${meta}</div>` : ''}</div>
     ${claimBtn}<button class="more" onclick="itemSheet('${i.id}')" aria-label="編集">⋯</button></div>`;
 }
@@ -578,7 +596,7 @@ function todoRow(i, gi){
 function tabTap(id){ if (id === cur) listSheet(id); else { cur = id; LS.set('list', id); showDone = false; render(); } }
 
 function addItems(names, opt = {}){
-  const L = curList(), ms = myShop();
+  const L = curList(), ms = myShop(), keys = [];
   names.forEach((raw, k) => {
     const base = { done: false, at: Date.now() + k, by: ME, memo: opt.memo || '' };
     if (L.type === 'todo') { // やること：文中の日付を自動で読む
@@ -587,12 +605,18 @@ function addItems(names, opt = {}){
     }
     const p = parseQty(raw); if (!p.name) return;
     const h = (D.history || {})[key(p.name)];
-    LR(cur).push({ ...base, name: p.name, qty: opt.qty || p.qty || '',
+    keys.push(LR(cur).push({ ...base, name: p.name, qty: opt.qty || p.qty || '',
       store: opt.store !== undefined ? opt.store : (h && h.store) || ms || '',
-      cat: L.type === 'shop' ? (opt.cat || (h && h.cat) || guessCat(p.name)) : '' });
+      cat: L.type === 'shop' ? (opt.cat || (h && h.cat) || guessCat(p.name)) : '' }).key);
   });
+  return keys;
 }
-function quickAdd(name){ addItems([name]); toast(`「${name}」を追加しました`); }
+async function quickAdd(name){
+  const [id] = addItems([name]); toast(`「${name}」を追加しました`);
+  // 前回の写真（品名ごとの最新1枚）を引き継ぐ
+  const np = (await R('namephotos/' + key(name)).once('value')).val();
+  if (id && np) await savePhotos(id, [{ d: np.d, t: np.t, at: Date.now() }], false);
+}
 
 function toggleClaim(id){
   const it = getItem(id); if (!it || it.done) return;
@@ -626,7 +650,22 @@ function toggleDone(id){
 function clearDone(){
   const done = items(cur).filter(i => i.done); if (!done.length) return;
   if (!confirm(`完了・購入済み${done.length}件をリストから消します。よろしいですか？`)) return;
-  const u = {}; done.forEach(i => u[i.id] = null); LR(cur).update(u); toast('片付けました');
+  clearItems(done.map(i => i.id), true).then(() => toast('片付けました'));
+}
+// 項目と写真をまとめて削除。keepLatest=true なら品名ごとの最新写真1枚を「いつもの」用に残す
+async function clearItems(ids, keepLatest){
+  const pb = pbase(cur), th = thumbsOf(cur), u = {};
+  if (keepLatest && !isPriv(cur) && curList().type === 'shop') {
+    for (const id of ids) {
+      if (!th[id]) continue;
+      const it = getItem(id), ph = Object.values((await R('photos/' + id).once('value')).val() || {}).sort((a, b) => (b.at || 0) - (a.at || 0))[0];
+      if (!it || !ph) continue;
+      const cur0 = (await R('namephotos/' + key(it.name)).once('value')).val();
+      if (!cur0 || (cur0.at || 0) < (ph.at || 0)) u['namephotos/' + key(it.name)] = { d: ph.d, t: ph.t, at: ph.at || Date.now(), name: it.name };
+    }
+  }
+  for (const id of ids) { u[pb + 'items/' + cur + '/' + id] = null; u[pb + 'photos/' + id] = null; u[pb + 'thumbs/' + id] = null; }
+  return R().update(u);
 }
 function uncheckAll(){
   const u = {}; items(cur).filter(i => i.done).forEach(i => { u[i.id + '/done'] = false; u[i.id + '/doneBy'] = null; u[i.id + '/doneAt'] = null; });
@@ -672,10 +711,14 @@ function itemSheet(id, voice){
   if (shop) h += `<div class="fld"><label>数量</label><input class="in" id="fQty" value="${esc(it ? it.qty : '')}" placeholder="例：2本"></div>
     <div class="fld"><label>お店</label>${optChips('store', ['', ...stores()], st)}</div>
     <div class="fld"><label>カテゴリ <span id="autoCat" style="font-weight:400"></span></label>${optChips('cat', CATS, it ? it.cat : 'その他')}</div>`;
-  h += `<div class="fld"><label>メモ</label><input class="in" id="fMemo" value="${esc(it ? it.memo : '')}" placeholder="例：低脂肪のやつ"></div>`;
+  h += `<div class="fld"><label>メモ</label><input class="in" id="fMemo" value="${esc(it ? it.memo : '')}" placeholder="例：低脂肪のやつ"></div>
+    <div class="fld"><label>写真（最大3枚・商品の写真など）</label><div class="phs" id="phs"></div>${it ? '' : '<div class="hint">写真は1品ずつ追加するときに付きます</div>'}</div>`;
   h += it ? `<div class="row2"><button class="btn warn" onclick="delItem('${id}')">🗑 削除</button><button class="btn pri" onclick="saveItem('${id}')">保存</button></div>`
           : `<button class="btn pri full" onclick="saveItem()">追加する</button><div class="hint" style="text-align:center">追加後もこの画面のまま続けて入力できます</div>`;
   openSheet(h);
+  sp = { id: id || null, list: [] }; renderPhs();
+  if (id) R(pbase(cur) + 'photos/' + id).once('value').then(s => { if (sp.id !== id) return;
+    sp.list = Object.entries(s.val() || {}).map(([k, v]) => ({ k, ...v })).sort((a, b) => (a.at || 0) - (b.at || 0)); renderPhs(); });
   const f = $('#fName');
   if (shop) f.addEventListener('input', () => { // 品名からカテゴリを自動推定
     if (catTouched) return;
@@ -691,12 +734,15 @@ function saveItem(id){
   const qty = shop ? $('#fQty').value.trim() : '', memo = $('#fMemo').value.trim(), store = shop ? chipVal('store') : '', cat = shop ? chipVal('cat') : '';
   if (id) { IR(id).update({ name, qty, memo, store, cat }); closeSheet(); return; }
   const names = splitNames(name, voiceMode); // 音声モードは「と」「、」「，」空白で分割（末尾の「。」も除去）
-  addItems(names, { qty: names.length === 1 ? qty : '', memo, store, cat: names.length === 1 || catTouched ? cat : '' });
+  const keys = addItems(names, { qty: names.length === 1 ? qty : '', memo, store, cat: names.length === 1 || catTouched ? cat : '' });
+  if (sp.list.length && keys.length === 1) savePhotos(keys[0], sp.list, true);
+  else if (sp.list.length) toast('写真は1品ずつ追加するときに付けられます');
+  sp.list = []; renderPhs();
   LS.set('lastStore', store);
   toast(`${names.length}件追加しました`);
   $('#fName').value = ''; if ($('#fQty')) $('#fQty').value = ''; $('#fMemo').value = ''; catTouched = false; $('#fName').focus();
 }
-function delItem(id){ IR(id).remove(); closeSheet(); toast('削除しました'); }
+function delItem(id){ clearItems([id], false); closeSheet(); toast('削除しました'); }
 
 // やることの追加・編集
 function todoSheet(id){
@@ -759,7 +805,9 @@ function saveList(id){
 }
 function delList(id){
   if (!confirm(`「${listObj(id).name}」と中の項目をすべて削除します。よろしいですか？`)) return;
-  const b = pbase(id); R().update({ [b + 'lists/' + id]: null, [b + 'items/' + id]: null }); closeSheet();
+  const b = pbase(id), u = { [b + 'lists/' + id]: null, [b + 'items/' + id]: null };
+  items(id).forEach(i => { u[b + 'photos/' + i.id] = null; u[b + 'thumbs/' + i.id] = null; });
+  R().update(u); closeSheet();
 }
 
 // 設定
@@ -799,7 +847,7 @@ function invite(u){
   if (navigator.share) navigator.share({ title: 'みどりのかご', text, url: u }).catch(() => {}); else copyText(text);
 }
 function switchMe(id){ if (!confirm(`この端末を「${member(id).name}」として使いますか？`)) return; ME = id; LS.set('me', id); closeSheet(); render(); }
-function leave(){ if (!confirm('この端末の設定を消して最初の画面に戻ります（非公開リストの引き継ぎコードは端末に残ります）。')) return; refs.forEach(r => r.off()); if (privRef) privRef.off(); ['fam', 'me', 'list'].forEach(LS.del); location.reload(); }
+function leave(){ if (!confirm('この端末の設定を消して最初の画面に戻ります（非公開リストの引き継ぎコードは端末に残ります）。')) return; refs.forEach(r => r.off()); privRefs.forEach(r => r.off()); ['fam', 'me', 'list'].forEach(LS.del); location.reload(); }
 function addStore(){ const v = $('#newStore').value.trim(); if (!v) return; R('stores').set([...stores(), v]); setTimeout(settingsSheet, 300); }
 function delStore(i){ const a = stores(); a.splice(i, 1); R('stores').set(a); setTimeout(settingsSheet, 300); }
 
@@ -828,6 +876,107 @@ $('#due').onclick = () => { // 近い期限があるやることリストへ
   const l = lists().find(l => l.type === 'todo' && items(l.id).some(i => !i.done && i.date && dayDiff(i.date) <= 3));
   if (l) { cur = l.id; LS.set('list', cur); LS.set('tf', 'all'); render(); }
 };
+
+/* ===================== 写真 ===================== */
+let sp = { id: null, list: [] }; // 追加・編集画面で扱っている写真
+const thumbsOf = lid => ((isPriv(lid) ? P.thumbs : D.thumbs) || {});
+function thumbHtml(id){
+  const t = thumbsOf(cur)[id]; if (!t) return '';
+  return `<div class="thumbw" onclick="event.stopPropagation();viewPhotos('${id}')"><img class="thumb" src="${esc(t.t)}" alt="写真">${t.n > 1 ? `<span class="n">${t.n}</span>` : ''}</div>`;
+}
+const loadImg = f => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(f); });
+function toJpeg(img, max, q, square){
+  let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+  if (square) { const m = Math.min(sw, sh); sx = (sw - m) / 2; sy = (sh - m) / 2; sw = sh = m; }
+  const r = Math.min(1, max / Math.max(sw, sh)), c = document.createElement('canvas');
+  c.width = Math.round(sw * r); c.height = Math.round(sh * r);
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  g.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', q);
+}
+// 長辺800px・品質0.7で縮小。150KBを超えたら品質→サイズの順に下げる。一覧用に96pxの正方形サムネイルも作る
+async function makePhoto(file){
+  const img = await loadImg(file); let q = 0.7, d = toJpeg(img, 800, q);
+  while (d.length * 0.75 > 150 * 1024 && q > 0.45) { q -= 0.1; d = toJpeg(img, 800, q); }
+  if (d.length * 0.75 > 150 * 1024) d = toJpeg(img, 600, 0.5);
+  const t = toJpeg(img, 96, 0.6, true); URL.revokeObjectURL(img.src);
+  return { d, t, at: Date.now() };
+}
+// 写真をDBへ保存（photos/{itemId} に本体、thumbs/{itemId} に一覧用サムネイル）。非公開リストは private 側へ
+async function savePhotos(id, list, rememberName){
+  const pb = pbase(cur), u = {};
+  list.forEach(p => { u[pb + 'photos/' + id + '/' + R('photos').push().key] = { d: p.d, t: p.t, at: p.at || Date.now() }; });
+  await R().update(u); await syncThumb(id);
+  if (rememberName) rememberNamePhoto(id, list[list.length - 1]);
+}
+async function syncThumb(id){
+  const pb = pbase(cur), all = Object.values((await R(pb + 'photos/' + id).once('value')).val() || {}).sort((a, b) => (a.at || 0) - (b.at || 0));
+  return all.length ? R(pb + 'thumbs/' + id).set({ t: all[0].t, n: all.length }) : R(pb + 'thumbs/' + id).remove();
+}
+// 「いつもの」用に品名ごとの最新写真を1枚だけ保存（共有の買い物リストだけ。非公開は相手に出さない）
+function rememberNamePhoto(id, p){
+  if (isPriv(cur) || curList().type !== 'shop' || !p) return;
+  const it = getItem(id) || { name: ($('#fName') || {}).value }; if (!it.name) return;
+  const nm = parseQty(splitNames(it.name)[0] || it.name).name;
+  R('namephotos/' + key(nm)).set({ d: p.d, t: p.t, at: p.at || Date.now(), name: nm });
+}
+function renderPhs(){
+  const box = $('#phs'); if (!box) return;
+  box.innerHTML = sp.list.map((p, i) => `<div class="ph"><img src="${esc(p.t || p.d)}" onclick="openViewer(sp.list.map(x=>x.d),'',${i})" alt=""><button type="button" class="del" onclick="delPhoto(${i})">×</button></div>`).join('') +
+    (sp.list.length < 3 ? `<button type="button" class="phadd" onclick="addPhoto()">📷<br>写真</button>` : '');
+}
+function addPhoto(){
+  // capture を付けない → iPhoneで「写真を撮る／写真ライブラリ」を選べる
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
+  inp.onchange = async () => {
+    const files = [...inp.files].slice(0, 3 - sp.list.length); if (!files.length) return;
+    toast('写真を縮小しています…');
+    const ps = []; for (const f of files) { try { ps.push(await makePhoto(f)); } catch (e) { toast('この画像は読み込めませんでした'); } }
+    if (!ps.length) return;
+    if (sp.id) { // 編集中の項目にはすぐ保存
+      const id = sp.id; await savePhotos(id, ps, true);
+      const s = await R(pbase(cur) + 'photos/' + id).once('value');
+      if (sp.id === id) { sp.list = Object.entries(s.val() || {}).map(([k, v]) => ({ k, ...v })).sort((a, b) => (a.at || 0) - (b.at || 0)); renderPhs(); }
+    } else { sp.list.push(...ps); renderPhs(); }
+    toast(`写真を${ps.length}枚追加しました`);
+  };
+  inp.click();
+}
+async function delPhoto(i){
+  const p = sp.list[i]; if (!p) return;
+  if (sp.id && p.k) { await R(pbase(cur) + 'photos/' + sp.id + '/' + p.k).remove(); await syncThumb(sp.id); }
+  sp.list.splice(i, 1); renderPhs();
+}
+async function viewPhotos(id){
+  const it = getItem(id), s = await R(pbase(cur) + 'photos/' + id).once('value');
+  const list = Object.values(s.val() || {}).sort((a, b) => (a.at || 0) - (b.at || 0)).map(p => p.d);
+  if (list.length) openViewer(list, it ? it.name : '', 0);
+}
+// 全画面表示：横スワイプで切替、ピンチ／ダブルタップ／ホイールで拡大
+function openViewer(list, caption, start){
+  const v = $('#viewer'); v.classList.remove('hide');
+  v.innerHTML = `<button class="vx" onclick="closeViewer()">✕ 閉じる</button><div class="vs">${list.map(d => `<div class="vp"><img src="${esc(d)}" alt=""></div>`).join('')}</div>
+    <div class="vc">${esc(caption)}${list.length > 1 ? `（${list.length}枚・横にスワイプ）` : ''}<br><span style="opacity:.7;font-size:12px">ピンチ・ダブルタップで拡大</span></div>`;
+  v.querySelectorAll('.vp').forEach(zoomable);
+  const vs = v.querySelector('.vs'); setTimeout(() => { vs.scrollLeft = (start || 0) * vs.clientWidth; }, 0);
+}
+function closeViewer(){ $('#viewer').classList.add('hide'); $('#viewer').innerHTML = ''; }
+function zoomable(box){
+  const img = box.querySelector('img'); let s = 1, x = 0, y = 0, d0 = 0, s0 = 1, px = 0, py = 0, last = 0;
+  const ap = () => { if (s <= 1) { s = 1; x = y = 0; } img.style.transform = `translate(${x}px,${y}px) scale(${s})`; box.style.touchAction = s > 1 ? 'none' : 'pan-x'; };
+  const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  box.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) { d0 = dist(e.touches); s0 = s; }
+    else if (e.touches.length === 1) { px = e.touches[0].clientX; py = e.touches[0].clientY;
+      const now = Date.now(); if (now - last < 300) { s = s > 1 ? 1 : 2.5; ap(); } last = now; }
+  }, { passive: true });
+  box.addEventListener('touchmove', e => {
+    if (e.touches.length === 2) { e.preventDefault(); s = Math.min(5, s0 * dist(e.touches) / d0); ap(); }
+    else if (s > 1 && e.touches.length === 1) { e.preventDefault(); const t = e.touches[0]; x += t.clientX - px; y += t.clientY - py; px = t.clientX; py = t.clientY; ap(); }
+  }, { passive: false });
+  box.addEventListener('wheel', e => { e.preventDefault(); s = Math.min(5, s * (e.deltaY < 0 ? 1.2 : 0.83)); ap(); }, { passive: false });
+  box.addEventListener('dblclick', () => { s = s > 1 ? 1 : 2.5; ap(); });
+}
 
 /* ===================== 音声入力 ===================== */
 // 1) 使える環境ではWeb Speech APIで直接追加
