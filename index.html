@@ -953,7 +953,7 @@ function lineSettingsHtml(){
     <div class="hint" id="lnRes">買い物モード開始・品物の追加（3分まとめ）・やることの追加／担当を家族のLINEグループに通知します。非公開リストは通知しません。</div></div>`;
 }
 function saveLine(on){
-  const c = lineCfg(), v = { on: on === undefined ? !!c.on : on, url: $('#lnUrl').value.trim(), secret: $('#lnSecret').value.trim() };
+  const c = lineCfg(), v = { on: on === undefined ? !!c.on : on, url: $('#lnUrl').value.trim() || c.url || '', secret: $('#lnSecret').value.trim() || c.secret || '' }; // 空欄で保存しても共有設定を消さない
   R('settings/line').set(v).then(() => { toast(v.on ? 'LINE通知：オン' : 'LINE通知：オフ'); setTimeout(settingsSheet, 200); });
 }
 async function testLine(){
