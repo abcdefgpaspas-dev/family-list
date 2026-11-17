@@ -729,7 +729,8 @@ function itemSheet(id, voice){
   f.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) saveItem(id); });
   if (!it) { if (voiceMode) f.focus(); setTimeout(() => f.focus(), 250); }
 }
-function saveItem(id){
+async function saveItem(id){
+  if (photoBusy) { toast('写真を処理しています…'); await photoBusy; }
   const shop = curList().type === 'shop', name = $('#fName').value.trim(); if (!name) return;
   const qty = shop ? $('#fQty').value.trim() : '', memo = $('#fMemo').value.trim(), store = shop ? chipVal('store') : '', cat = shop ? chipVal('cat') : '';
   if (id) { IR(id).update({ name, qty, memo, store, cat }); closeSheet(); return; }
@@ -928,7 +929,12 @@ function renderPhs(){
 function addPhoto(){
   // capture を付けない → iPhoneで「写真を撮る／写真ライブラリ」を選べる
   const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
-  inp.onchange = async () => {
+  inp.onchange = () => { photoBusy = handlePhotoFiles(inp).finally(() => { photoBusy = null; }); };
+  inp.click();
+}
+let photoBusy = null; // 縮小処理中に「追加」を押されても写真が付くように待つ
+async function handlePhotoFiles(inp){
+  {
     const files = [...inp.files].slice(0, 3 - sp.list.length); if (!files.length) return;
     toast('写真を縮小しています…');
     const ps = []; for (const f of files) { try { ps.push(await makePhoto(f)); } catch (e) { toast('この画像は読み込めませんでした'); } }
@@ -939,8 +945,7 @@ function addPhoto(){
       if (sp.id === id) { sp.list = Object.entries(s.val() || {}).map(([k, v]) => ({ k, ...v })).sort((a, b) => (a.at || 0) - (b.at || 0)); renderPhs(); }
     } else { sp.list.push(...ps); renderPhs(); }
     toast(`写真を${ps.length}枚追加しました`);
-  };
-  inp.click();
+  }
 }
 async function delPhoto(i){
   const p = sp.list[i]; if (!p) return;
